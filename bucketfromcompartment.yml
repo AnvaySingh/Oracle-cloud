@@ -1,0 +1,11 @@
+---
+  - name: Get all the buckets in the namespace
+    oci_object_storage_bucket_facts:
+          namespace_name: "{{ namespace_name.namespaces[0].namespace_name }}"
+          compartment_id: "{{item}}"
+    register: ocibuckets
+
+  - name: Get a specific bucket
+    include_tasks: bucketdetails.yml
+
+    with_items: "{{ocibuckets.buckets}}"
