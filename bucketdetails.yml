@@ -1,0 +1,13 @@
+---
+- name: Get specific bucket data
+
+  oci_object_storage_bucket_facts:
+  # required
+    bucket_name: "{{item.name}}"
+    namespace_name:  "{{ namespace_name.namespaces[0].namespace_name }}"
+  register: specific_bucket
+
+- name: Print single bucket details
+  debug:
+        msg: 'Bucket: {{item.name}} has public access type'
+  when: specific_bucket.buckets[0].public_access_type !="NoPublicAccess"
