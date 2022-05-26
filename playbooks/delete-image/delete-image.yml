@@ -1,0 +1,94 @@
+---
+- hosts: localhost
+  gather_facts: no
+  collections:
+   - oracle.oci
+  tasks:
+    - name: Initialize an empty list for the matching instances
+      ansible.builtin.set_fact:
+        matching_instances: []
+      delegate_to: localhost
+
+    - name: Get details of all the compute instances of a specified compartment
+      oracle.oci.oci_compute_instance_facts:
+        compartment_id: "{{ COMPARTMENT_ID }}"
+        availability_domain: "{{ AVAILABILITY_DOMAIN }}"
+      register: compute_instances
+      delegate_to: localhost
+
+    - name: Normalize BUILD_USER_ID
+      ansible.builtin.set_fact:
+        USER_ID: "{{ BUILD_USER_ID|regex_replace('@.*','')|regex_replace('^.*\\\\','')|lower}}"
+
+    - name: Find matching instances
+      ansible.builtin.set_fact:
+        matching_instances: "{{ matching_instances + [item.display_name] }}"
+        matching_id_instance: "{{ matching_instances + [item.id] }}"
+      with_items: "{{ compute_instances.instances }}"
+      when:
+        - item.display_name|upper == "{{ MachineName|upper }}"
+        - item.lifecycle_state != "TERMINATED"
+        - item.defined_tags.DevOps.Owner is defined
+        - item.defined_tags.DevOps.Owner == "{{ USER_ID }}" or item.defined_tags.DevOps.Owner == "{{ BUILD_USER_ID }}"
+      delegate_to: localhost
+
+    - name: Fail if no machines found
+      ansible.builtin.fail:
+        msg: No machines found with machine name
+      when: (matching_instances | length) < 1
+
+    - name: Set variables to empty
+      ansible.builtin.set_fact:
+        matching_images: []
+      delegate_to: localhost
+
+    - name:  Set Compartment id
+      oracle.oci.oci_compute_image_facts:
+        compartment_id: "{{ COMPARTMENT_ID }}"
+      register: oci_images
+
+    - name: set facts for images
+      ansible.builtin.set_fact:
+        matching_id: "{{ matching_images + [item.id] }}"
+        matching_images: "{{ matching_images + [item.display_name] }}"
+      with_items: "{{ oci_images.images }}"
+      when:
+        - item.compartment_id is not none
+        - item.defined_tags.DevOps.Owner is defined
+        - "item.display_name|upper == ImageName|upper"
+        - "item.defined_tags.DevOps.Owner == USER_ID"
+        - "item.defined_tags.DevOps.MachineName|upper == MachineName|upper"
+
+    - name: Find the matching image name with machine
+      ansible.builtin.debug:
+        var: matching_images
+
+    - name: Fail if multiple images found
+      ansible.builtin.fail:
+        msg: Multiple images found with the same machine name
+      when: (matching_images | length) > 1
+
+    - name: Fail if no images found
+      ansible.builtin.fail:
+        msg: No images found with machine name
+      when:
+        - (matching_images | length) < 1
+        #- "IgnoreErrors != 'true'"
+
+    - name: Set variable so we can skip the rest of the playbook
+      ansible.builtin.set_fact:
+        endplay: "true"
+      when:
+        - (matching_images | length) < 1
+        - "IgnoreErrors == 'true'"
+
+    - block:
+      - name: Find the matching image id with machine
+        ansible.builtin.debug:
+          var: matching_id
+
+      - name: Deleting the Image
+        oracle.oci.oci_compute_image:
+          image_id: "{{ matching_id[0] }}"
+          state: "absent"
+      when: "endplay is not defined"
