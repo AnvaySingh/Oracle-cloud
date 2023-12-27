@@ -7,7 +7,7 @@
   tasks:
   - name: Initialize an empty list for compartment ids
     ansible.builtin.set_fact:
-      compartment_id: ["ocid1.tenancy.oc1..aaaaaaaaso2ehakqgn5jmg7anrfbwztw6ost7vjpewtlwiye5gvztj4ijpdq"]
+      compartment_id: ["ocid1.tenancy.oc1..aaaaaaaas......."] #Replace your compartment id
     delegate_to: localhost
 
   - name: Initialize an empty list for bucket list
@@ -24,7 +24,7 @@
   - name: List compartments
     oci_identity_compartment_facts:
       # required
-      parent_compartment_id: "ocid1.tenancy.oc1..aaaaaaaaso2ehakqgn5jmg7anrfbwztw6ost7vjpewtlwiye5gvztj4ijpdq"
+      parent_compartment_id: "ocid1.tenancy.oc1..aaaaaaaas......" #Replace your compartment id
       access_level: ANY
       compartment_id_in_subtree: true
     register: compartmentlist
@@ -40,7 +40,7 @@
   - name: List namespaces
     oci_log_analytics_namespace_facts:
       # required
-      compartment_id: "ocid1.tenancy.oc1..aaaaaaaaso2ehakqgn5jmg7anrfbwztw6ost7vjpewtlwiye5gvztj4ijpdq"
+      compartment_id: "ocid1.tenancy.oc1..aaaaaaaa......" #Replace your compartment id
     register: namespace_name
 
   - name: complete tasks
